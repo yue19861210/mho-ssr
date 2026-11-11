@@ -110,28 +110,42 @@
 
 <script src="data.js"></script>
 <script>
-var DATA = window.SSR_DATA || {accounts: []};
+var DATA = window.SSR_DATA || {accounts: [], catalog: []};
 var picked = new Set();
 var sortBy = 'num';
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
                             .replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-function buildChips(){
-  var seen = {}, list = [];
+/* 角色目录：catalog 里全部角色 + 已有账号里出现但目录没有的 */
+function allChars(){
+  var m = {}, list = [];
+  (DATA.catalog||[]).forEach(function(c){
+    if (!m[c.name]) { m[c.name] = {name:c.name, avatar:c.avatar||'', count:0, kind:c.kind||''}; list.push(m[c.name]); }
+  });
   DATA.accounts.forEach(function(a){
     (a.chars||[]).forEach(function(c){
-      if (c.sold) return;
-      if (!seen[c.name]) { seen[c.name] = {name:c.name, avatar:c.avatar||'', count:0}; list.push(seen[c.name]); }
-      seen[c.name].count++;
-      if (!seen[c.name].avatar && c.avatar) seen[c.name].avatar = c.avatar;
+      if (!m[c.name]) { m[c.name] = {name:c.name, avatar:c.avatar||'', count:0, kind:''}; list.push(m[c.name]); }
+      if (!m[c.name].avatar && c.avatar) m[c.name].avatar = c.avatar;
+      if (!c.sold) m[c.name].count++;
     });
   });
-  list.sort(function(x,y){ return y.count - x.count; });
+  list.sort(function(x,y){
+    if (y.count !== x.count) return y.count - x.count;
+    return String(x.name).localeCompare(String(y.name), 'zh');
+  });
+  return list;
+}
+
+function buildChips(){
+  var list = allChars();
   document.getElementById('chips').innerHTML = list.map(function(c){
     var on = picked.has(c.name) ? ' on' : '';
-    var img = c.avatar ? '<img src="'+esc(c.avatar)+'">' : '';
-    return '<button class="chip'+on+'" onclick="togglePick(this)" data-n="'+esc(c.name)+'">'+
+    var zero = c.count === 0 ? ' zero' : '';
+    var img = c.avatar
+      ? '<img src="'+esc(c.avatar)+'">'
+      : '<span class="ph"></span>';
+    return '<button class="chip'+on+zero+'" onclick="togglePick(this)" data-n="'+esc(c.name)+'">'+
       img+'<span class="n">'+esc(c.name)+'</span><span class="c">'+c.count+'</span></button>';
   }).join('') + (picked.size ? '<button class="clear" onclick="clearPick()">清除 '+picked.size+'</button>' : '');
 }
@@ -139,6 +153,96 @@ function togglePick(btn){
   var n = btn.getAttribute('data-n');
   if (picked.has(n)) picked.delete(n); else picked.add(n);
   buildChips(); render();
+}
+function clearPick(){ picked.clear(); buildChips(); render(); }
+
+function filterList(){
+  var arr = [];
+  DATA.accounts.forEach(function(a){
+    var chars = (a.chars||[]);
+    if (picked.size) {
+      var has = true;
+      picked.forEach(function(p){
+        if (!chars.some(function(c){ return c.name === p; })) has = false;
+      });
+      if (!has) return;
+    }
+    arr.push(a);
+  });
+  arr.sort(function(x,y){
+    if (sortBy === 'ssr') {
+      var cx = x.chars.filter(function(c){return !c.sold;}).length;
+      var cy = y.chars.filter(function(c){return !c.sold;}).length;
+      return cy - cx;
+    }
+    if (sortBy === 'new') return String(y.time||'').localeCompare(String(x.time||''));
+    return String(x.account||'').localeCompare(String(y.account||''));
+  });
+  return arr;
+}
+
+function render(){
+  var arr = filterList();
+  var live=0, sold=0;
+  DATA.accounts.forEach(function(a){ (a.chars||[]).forEach(function(c){ c.sold?sold++:live++; }); });
+  document.getElementById('s-acc').textContent = DATA.accounts.length;
+  document.getElementById('s-ssr').textContent = live;
+  document.getElementById('s-sold').textContent = sold;
+  document.getElementById('s-time').textContent = (DATA.updated||'—').slice(5,16);
+
+  if (!arr.length) {
+    var msg = picked.size
+      ? '선택한 캐릭터를 가진 계정이 없어요 / 没有同时拥有这些角色的账号'
+      : '아직 없어요 / 还没有数据';
+    document.getElementById('grid').innerHTML =
+      '<div class="empty" style="display:block;grid-column:1/-1"><h2>'+msg+'</h2></div>';
+    return;
+  }
+
+  document.getElementById('grid').innerHTML = arr.map(function(a){
+    var allSold = a.chars.length>0 && a.chars.every(function(c){return c.sold;});
+    var ch = a.chars.map(function(c){
+      var img = c.avatar ? '<img src="'+esc(c.avatar)+'">' : '';
+      return '<div class="ch"><div class="ph">'+img+'</div><div class="nm">'+esc(c.name)+'</div></div>';
+    }).join('');
+    var liveN = a.chars.filter(function(c){return !c.sold;}).length;
+    return '<div class="acct'+(allSold?' sold':'')+'" onclick="openM(this)" data-acc="'+esc(a.account)+'">'+
+      (allSold?'<div class="ribbon">판매완료 已售</div>':'')+
+      '<div class="ahead"><div class="anum">#'+esc(a.account)+'</div>'+
+      '<div class="cnt">SSR × '+liveN+'</div></div>'+
+      '<div class="chars">'+ch+'</div></div>';
+  }).join('');
+}
+
+function openM(el){
+  var acc = el.getAttribute('data-acc');
+  var a = null;
+  DATA.accounts.forEach(function(x){ if (x.account === acc) a = x; });
+  if (!a) return;
+  document.getElementById('mt').textContent = '#' + acc + (a.time ? '  ·  ' + a.time : '');
+  document.getElementById('mg').innerHTML = a.chars.map(function(c){
+    var img = c.avatar ? '<img src="'+esc(c.avatar)+'">' : '';
+    return '<div class="mg">'+img+'<div class="n">'+esc(c.name)+'</div>'+
+      (c.sold?'<div class="k">已售</div>':'<div class="k">SSR</div>')+'</div>';
+  }).join('');
+  document.getElementById('modal').classList.add('show');
+}
+function closeM(){ document.getElementById('modal').classList.remove('show'); }
+
+var sb = document.querySelectorAll('.sortbar button');
+for (var i=0;i<sb.length;i++){
+  sb[i].onclick = (function(b){
+    return function(){
+      for (var k=0;k<sb.length;k++) sb[k].classList.remove('on');
+      b.classList.add('on');
+      sortBy = b.getAttribute('data-sort');
+      render();
+    };
+  })(sb[i]);
+}
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeM(); });
+
+buildChips(); render();
 }
 function clearPick(){ picked.clear(); buildChips(); render(); }
 
