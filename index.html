@@ -37,7 +37,7 @@
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
     gap:13px;padding:14px 0 40px}
   .acct{background:var(--card);border:1px solid var(--line);border-radius:14px;
-    overflow:hidden;transition:.15s;position:relative}
+    overflow:hidden;transition:.15s;position:relative;cursor:pointer}
   .acct:hover{border-color:var(--gold);transform:translateY(-2px)}
   .acct.sold{opacity:.5;filter:grayscale(.8)}
   .ahead{display:flex;justify-content:space-between;align-items:center;
@@ -55,6 +55,25 @@
   .empty{text-align:center;padding:70px 20px;color:var(--muted)}
   .empty h2{color:var(--txt);font-size:17px;margin:0 0 8px}
   footer{padding:14px 0 30px;color:var(--muted);font-size:11px;text-align:center}
+  /* 弹窗 */
+  .modal{position:fixed;inset:0;z-index:50;display:none;align-items:center;
+    justify-content:center;padding:16px;background:rgba(6,10,14,.82);backdrop-filter:blur(3px)}
+  .modal.show{display:flex}
+  .mbox{background:#18212b;border:1px solid var(--line);border-radius:16px;
+    max-width:min(560px,96vw);max-height:92vh;overflow:auto;padding:16px;width:100%}
+  .mh{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .mt{font-size:17px;font-weight:800;color:var(--gold)}
+  .mx{border:0;background:#2a3542;color:var(--txt);width:32px;height:32px;
+    border-radius:50%;cursor:pointer;font-size:15px}
+  .mgrid{display:flex;flex-wrap:wrap;gap:10px}
+  .mg{width:86px;text-align:center}
+  .mg img{width:86px;height:86px;border-radius:10px;background:#0d1218;object-fit:cover}
+  .mg .n{font-size:12px;font-weight:700;margin-top:4px}
+  .mg .k{font-size:10px;color:var(--muted)}
+  .sortbar{display:flex;gap:8px;align-items:center;padding:6px 0 0;flex-wrap:wrap}
+  .sortbar button{padding:5px 12px;border-radius:999px;border:1px solid var(--line);
+    background:var(--card);color:var(--muted);font-size:12px;cursor:pointer;font-family:inherit}
+  .sortbar button.on{background:#2a2410;border-color:var(--gold);color:var(--gold)}
   @media(max-width:560px){
     .grid{grid-template-columns:1fr}
     .ch{width:62px}.ch .ph{width:62px;height:56px}
@@ -63,19 +82,15 @@
 </head>
 <body>
 <header><div class="wrap">
-  <h1>MHO <b>SSR</b> 자선 自选 · 몬스터헌터 아웃랜더스</h1>
-  <div class="sub">脚本自动上传 · 只显示 SSR · 实时更新</div>
-  <div class="stats">
-    <div><b id="s-acc">0</b><span>계정 账号</span></div>
-    <div><b id="s-ssr">0</b><span>SSR 캐릭터</span></div>
-    <div><b id="s-sold">0</b><span>판매완료 已售</span></div>
-    <div><b id="s-time">—</b><span>업데이트 更新</span></div>
-  </div>
-</div></header>
-<div class="wrap">
   <div class="filterbar">
     <div class="flabel">캐릭터로 찾기 · 点角色筛选账号（可多选）</div>
     <div class="chips" id="chips"></div>
+  </div>
+  <div class="sortbar">
+    <span class="flabel" style="margin:0">정렬 排序：</span>
+    <button data-sort="num" class="on">编号</button>
+    <button data-sort="ssr">SSR数量</button>
+    <button data-sort="new">最新</button>
   </div>
   <div class="grid" id="grid"></div>
   <div class="empty" id="empty" style="display:none">
@@ -84,7 +99,130 @@
   </div>
 </div>
 <footer>자동 업데이트 · 数据由脚本实时上传 · 每 60 秒刷新</footer>
+
+<div class="modal" id="modal" onclick="if(event.target===this)closeM()">
+  <div class="mbox">
+    <div class="mh"><div class="mt" id="mt">#</div>
+      <button class="mx" onclick="closeM()">✕</button></div>
+    <div class="mgrid" id="mg"></div>
+  </div>
+</div>
+
 <script src="data.js"></script>
+<script>
+var DATA = window.SSR_DATA || {accounts: []};
+var picked = new Set();
+var sortBy = 'num';
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+                            .replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function buildChips(){
+  var seen = {}, list = [];
+  DATA.accounts.forEach(function(a){
+    (a.chars||[]).forEach(function(c){
+      if (c.sold) return;
+      if (!seen[c.name]) { seen[c.name] = {name:c.name, avatar:c.avatar||'', count:0}; list.push(seen[c.name]); }
+      seen[c.name].count++;
+      if (!seen[c.name].avatar && c.avatar) seen[c.name].avatar = c.avatar;
+    });
+  });
+  list.sort(function(x,y){ return y.count - x.count; });
+  document.getElementById('chips').innerHTML = list.map(function(c){
+    var on = picked.has(c.name) ? ' on' : '';
+    var img = c.avatar ? '<img src="'+esc(c.avatar)+'">' : '';
+    return '<button class="chip'+on+'" onclick="togglePick(this)" data-n="'+esc(c.name)+'">'+
+      img+'<span class="n">'+esc(c.name)+'</span><span class="c">'+c.count+'</span></button>';
+  }).join('') + (picked.size ? '<button class="clear" onclick="clearPick()">清除 '+picked.size+'</button>' : '');
+}
+function togglePick(btn){
+  var n = btn.getAttribute('data-n');
+  if (picked.has(n)) picked.delete(n); else picked.add(n);
+  buildChips(); render();
+}
+function clearPick(){ picked.clear(); buildChips(); render(); }
+
+function filterList(){
+  var arr = [];
+  DATA.accounts.forEach(function(a){
+    var chars = (a.chars||[]);
+    if (picked.size) {
+      var has = true;
+      picked.forEach(function(p){
+        if (!chars.some(function(c){ return c.name === p; })) has = false;
+      });
+      if (!has) return;
+    }
+    arr.push(a);
+  });
+  arr.sort(function(x,y){
+    if (sortBy === 'ssr') {
+      var cx = x.chars.filter(function(c){return !c.sold;}).length;
+      var cy = y.chars.filter(function(c){return !c.sold;}).length;
+      return cy - cx;
+    }
+    if (sortBy === 'new') return String(y.time||'').localeCompare(String(x.time||''));
+    return String(x.account||'').localeCompare(String(y.account||''));
+  });
+  return arr;
+}
+
+function render(){
+  var arr = filterList();
+  var live=0, sold=0;
+  DATA.accounts.forEach(function(a){ (a.chars||[]).forEach(function(c){ c.sold?sold++:live++; }); });
+  document.getElementById('s-acc').textContent = DATA.accounts.length;
+  document.getElementById('s-ssr').textContent = live;
+  document.getElementById('s-sold').textContent = sold;
+  document.getElementById('s-time').textContent = (DATA.updated||'—').slice(5,16);
+
+  document.getElementById('grid').innerHTML = arr.map(function(a){
+    var allSold = a.chars.length>0 && a.chars.every(function(c){return c.sold;});
+    var ch = a.chars.map(function(c){
+      var img = c.avatar ? '<img src="'+esc(c.avatar)+'">' : '';
+      return '<div class="ch"><div class="ph">'+img+'</div><div class="nm">'+esc(c.name)+'</div></div>';
+    }).join('');
+    var liveN = a.chars.filter(function(c){return !c.sold;}).length;
+    return '<div class="acct'+(allSold?' sold':'')+'" onclick="openM(this)" data-acc="'+esc(a.account)+'">'+
+      (allSold?'<div class="ribbon">판매완료 已售</div>':'')+
+      '<div class="ahead"><div class="anum">#'+esc(a.account)+'</div>'+
+      '<div class="cnt">SSR × '+liveN+'</div></div>'+
+      '<div class="chars">'+ch+'</div></div>';
+  }).join('');
+  document.getElementById('empty').style.display = arr.length ? 'none' : 'block';
+}
+
+function openM(el){
+  var acc = el.getAttribute('data-acc');
+  var a = null;
+  DATA.accounts.forEach(function(x){ if (x.account === acc) a = x; });
+  if (!a) return;
+  document.getElementById('mt').textContent = '#' + acc + (a.time ? '  ·  ' + a.time : '');
+  document.getElementById('mg').innerHTML = a.chars.map(function(c){
+    var img = c.avatar ? '<img src="'+esc(c.avatar)+'">' : '';
+    return '<div class="mg">'+img+'<div class="n">'+esc(c.name)+'</div>'+
+      (c.sold?'<div class="k">已售</div>':'<div class="k">SSR</div>')+'</div>';
+  }).join('');
+  document.getElementById('modal').classList.add('show');
+}
+function closeM(){ document.getElementById('modal').classList.remove('show'); }
+
+var sb = document.querySelectorAll('.sortbar button');
+for (var i=0;i<sb.length;i++){
+  sb[i].onclick = (function(b){
+    return function(){
+      for (var k=0;k<sb.length;k++) sb[k].classList.remove('on');
+      b.classList.add('on');
+      sortBy = b.getAttribute('data-sort');
+      render();
+    };
+  })(sb[i]);
+}
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeM(); });
+
+buildChips(); render();
+setInterval(function(){ location.reload(); }, 60000);
+</script>
 <script>
 var DATA = window.SSR_DATA || {accounts: []};
 var picked = new Set();
