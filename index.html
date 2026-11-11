@@ -21,6 +21,15 @@
 
   /* 角色筛选（必需功能③）*/
   .sect{padding:12px 0 4px}
+  .searchrow{display:flex;gap:7px;margin-bottom:10px}
+  .searchrow input{flex:1;padding:8px 12px;border-radius:9px;border:1px solid var(--line);
+    background:#131b24;color:var(--txt);font-size:13px;outline:none;font-family:inherit}
+  .searchrow input:focus{border-color:var(--gold)}
+  .searchrow input::placeholder{color:#5d6b7a}
+  .qbtn{padding:8px 14px;border-radius:9px;border:1px solid var(--line);
+    background:#1b242e;color:var(--muted);font-size:12px;cursor:pointer;font-family:inherit}
+  .qbtn:hover{border-color:var(--gold);color:var(--gold)}
+  .match{font-size:11px;color:var(--gold);margin-left:auto}
   .stitle{font-size:11px;color:var(--muted);margin-bottom:6px}
   .chips{display:flex;gap:7px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none}
   .chips::-webkit-scrollbar{display:none}
@@ -104,6 +113,10 @@
 
 <div class="wrap">
   <div class="sect">
+    <div class="searchrow">
+      <input id="q" type="search" placeholder="搜索账号编号 / 角色名 …">
+      <button id="qclear" class="qbtn">清除</button>
+    </div>
     <div class="stitle">캐릭터로 찾기 · 点角色筛选（可多选，需同时拥有）</div>
     <div class="chips" id="chips"></div>
     <div class="sortrow">
@@ -111,6 +124,7 @@
       <button data-sort="num" class="on">编号</button>
       <button data-sort="ssr">SSR数</button>
       <button data-sort="new">最新</button>
+      <span class="match" id="match"></span>
     </div>
   </div>
   <div class="grid" id="grid"></div>
@@ -162,8 +176,10 @@ function buildChips(){
     var on = picked.has(c.name) ? ' on' : '';
     var zero = c.count ? '' : ' zero';
     var av = c.avatar ? '<img src="'+esc(c.avatar)+'">' : '<span class="ph"></span>';
-    return '<button class="chip'+on+zero+'" data-n="'+esc(c.name)+'">'+
-      av+'<span class="n">'+esc(c.name)+'</span><span class="c">'+c.count+'</span></button>';
+    var cnt = c.count ? '<span class="c">'+c.count+'</span>' : '';
+    return '<button class="chip'+on+zero+'" data-n="'+esc(c.name)+'"'+
+      (c.count ? '' : ' title="暂无账号拥有，其它机器同步后自动出现"')+'>'+
+      av+'<span class="n">'+esc(c.name)+'</span>'+cnt+'</button>';
   }).join('');
   if (picked.size) html += '<button class="clear">清除 '+picked.size+'</button>';
   var box = document.getElementById('chips');
@@ -179,13 +195,29 @@ function buildChips(){
   if (clr) clr.onclick = function(){ picked.clear(); buildChips(); render(); };
 }
 
+var q = '';
+
 function render(){
+  var kw = q.trim().toLowerCase();
   var arr = DATA.accounts.filter(function(a){
-    if (!picked.size) return true;
-    var names = (a.chars||[]).map(function(c){ return c.name; });
-    var has = true;
-    picked.forEach(function(p){ if (names.indexOf(p) < 0) has = false; });
-    return has;
+    // ① 角色筛选：必须同时拥有所有选中角色
+    if (picked.size) {
+      var names = (a.chars||[]).map(function(c){ return c.name; });
+      var has = true;
+      picked.forEach(function(p){ if (names.indexOf(p) < 0) has = false; });
+      if (!has) return false;
+    }
+    // ② 关键词：账号编号 或 任一角色名
+    if (kw) {
+      var hit = String(a.account||'').toLowerCase().indexOf(kw) >= 0;
+      if (!hit) {
+        hit = (a.chars||[]).some(function(c){
+          return String(c.name||'').toLowerCase().indexOf(kw) >= 0;
+        });
+      }
+      if (!hit) return false;
+    }
+    return true;
   });
 
   if (sortBy === 'ssr') {
@@ -208,12 +240,25 @@ function render(){
   document.getElementById('s-sold').textContent = sold;
   document.getElementById('s-time').textContent = (DATA.updated||'—').slice(5,16);
 
+  // 匹配数量提示（用户要的"我有几个"）
+  var mEl = document.getElementById('match');
+  if (mEl) {
+    var cond = [];
+    if (picked.size) cond.push(picked.size + '개 캐릭터');
+    if (kw) cond.push('"' + q.trim() + '"');
+    mEl.textContent = (arr.length || 0) + ' 개 일치 匹配 ' + arr.length + ' 个' +
+                       (cond.length ? '（' + cond.join(' + ') + '）' : '');
+  }
+
   if (!arr.length) {
+    var msg;
+    if (picked.size || kw) {
+      msg = '조건에 맞는 계정이 없어요<br>没有符合条件的账号';
+    } else {
+      msg = '아직 없어요<br>还没有数据';
+    }
     document.getElementById('grid').innerHTML =
-      '<div class="empty"><h2>' +
-      (picked.size ? '선택한 캐릭터를 가진 계정이 없어요<br>没有同时拥有这些角色的账号'
-                   : '아직 없어요<br>还没有数据') +
-      '</h2></div>';
+      '<div class="empty"><h2>' + msg + '</h2></div>';
     return;
   }
 
@@ -283,6 +328,20 @@ Array.prototype.forEach.call(
 document.addEventListener('keydown', function(e){
   if (e.key === 'Escape') closeM();
 });
+
+// 搜索框：边输边筛（输入即刷新，不用点按钮）
+var qEl = document.getElementById('q');
+if (qEl) {
+  qEl.oninput = function(){ q = qEl.value; render(); };
+}
+var qc = document.getElementById('qclear');
+if (qc) {
+  qc.onclick = function(){
+    q = ''; if (qEl) qEl.value = '';
+    picked.clear();
+    buildChips(); render();
+  };
+}
 
 buildChips(); render();
 setInterval(function(){ location.reload(); }, 60000);
