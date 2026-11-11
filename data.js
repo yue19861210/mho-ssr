@@ -1,1 +1,1 @@
-window.SSR_DATA = {"updated": "2026-11-11 15:50:22", "accounts": [{"account": "yue19861210-demo", "time": "2026-11-12 10:00", "chars": [{"name": "弥多律", "avatar": "heads/2bd1d9c22d95.webp"}, {"name": "路加", "avatar": "heads/a34d6af44c93.webp"}, {"name": "蕊儿", "avatar": "avatars/av_c37c25099a56.jpg"}]}]};
+window.SSR_DATA = {"updated": "2026-11-11 15:50:22", "accounts": [{"account": "yue19861210-demo", "time": "2026-11-12 10:00", "chars": [{"name": "弥多律", "avatar": "heads/2bd1d9c22d95.webp"}, {"name": "路加", "avatar": "heads/a34d6af44c93.webp"}]}]};
