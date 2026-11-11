@@ -65,7 +65,8 @@
   .anum{font-size:14px;font-weight:800;letter-spacing:.02em}
   .copy{font-size:10px;color:var(--muted);border:1px solid var(--line);
     border-radius:5px;padding:1px 6px;margin-left:7px;background:#111923}
-  .cnt{font-size:11px;color:var(--gold);font-weight:700}
+  .cnt{font-size:11px;color:var(--gold);font-weight:700;text-align:right;line-height:1.35}
+  .atime{display:block;font-size:9.5px;color:var(--muted);font-weight:400}
   .chars{display:flex;flex-wrap:wrap;gap:7px;padding:11px}
   .ch{width:68px;text-align:center}
   .ch .ph{width:68px;height:60px;border-radius:8px;overflow:hidden;background:#0b1016}
@@ -274,7 +275,9 @@ function render(){
       (allSold ? '<div class="ribbon">판매완료 已售</div>' : '') +
       '<div class="ahead"><div class="anum">#'+esc(a.account)+
       '<span class="copy" data-copy="'+esc(a.account)+'">복사 复制</span></div>' +
-      '<div class="cnt">SSR × '+liveN+'</div></div>' +
+      '<div class="cnt">SSR × '+liveN+
+      (a.time ? '<span class="atime">'+esc(String(a.time).slice(5))+'</span>' : '')+
+      '</div></div>' +
       '<div class="chars">'+inner+'</div></div>';
   }).join('');
 
