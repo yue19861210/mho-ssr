@@ -44,7 +44,7 @@
   .chip:hover{border-color:var(--gold)}
   .chip.on{background:#2b2412;border-color:var(--gold);color:var(--gold)}
   .chip.on .c{color:var(--gold)}
-  .chip.zero{opacity:.42}
+  .chip.zero{opacity:1}   /* 2026-11-12：用户要求全部亮起，不再灰 */
   .clear{padding:4px 10px;font-size:12px;border-radius:999px;border:1px solid #a4433f;
     background:#331a1c;color:#ffb0ab;cursor:pointer;font-family:inherit}
   .sortrow{display:flex;gap:6px;align-items:center;padding-top:6px;flex-wrap:wrap}
@@ -174,12 +174,9 @@ function buildChips(){
   var list = allChars();
   var html = list.map(function(c){
     var on = picked.has(c.name) ? ' on' : '';
-    var zero = c.count ? '' : ' zero';
     var av = c.avatar ? '<img src="'+esc(c.avatar)+'">' : '<span class="ph"></span>';
-    var cnt = c.count ? '<span class="c">'+c.count+'</span>' : '';
-    return '<button class="chip'+on+zero+'" data-n="'+esc(c.name)+'"'+
-      (c.count ? '' : ' title="暂无账号拥有，其它机器同步后自动出现"')+'>'+
-      av+'<span class="n">'+esc(c.name)+'</span>'+cnt+'</button>';
+    return '<button class="chip'+on+'" data-n="'+esc(c.name)+'">'+
+      av+'<span class="n">'+esc(c.name)+'</span></button>';
   }).join('');
   if (picked.size) html += '<button class="clear">清除 '+picked.size+'</button>';
   var box = document.getElementById('chips');
@@ -240,14 +237,17 @@ function render(){
   document.getElementById('s-sold').textContent = sold;
   document.getElementById('s-time').textContent = (DATA.updated||'—').slice(5,16);
 
-  // 匹配数量提示（用户要的"我有几个"）
+  // 匹配数量提示（用户要的"点角色后弹出拥有几个"）
   var mEl = document.getElementById('match');
   if (mEl) {
-    var cond = [];
-    if (picked.size) cond.push(picked.size + '개 캐릭터');
-    if (kw) cond.push('"' + q.trim() + '"');
-    mEl.textContent = (arr.length || 0) + ' 개 일치 匹配 ' + arr.length + ' 个' +
-                       (cond.length ? '（' + cond.join(' + ') + '）' : '');
+    if (picked.size || kw) {
+      var who = [];
+      picked.forEach(function(p){ who.push(p); });
+      var label = who.length ? who.join(' + ') : '"' + q.trim() + '"';
+      mEl.textContent = label + ' ：拥有 ' + arr.length + ' 个账号';
+    } else {
+      mEl.textContent = '';
+    }
   }
 
   if (!arr.length) {
