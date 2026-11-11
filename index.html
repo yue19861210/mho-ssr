@@ -5,100 +5,117 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>몬스터헌터 아웃랜더스 · SSR 자선 自选</title>
 <style>
-  :root{--bg:#0f151c;--card:#1a232d;--line:#2a3542;--txt:#e8eef4;--muted:#8fa1b3;
-        --gold:#f0b429}
+  :root{--bg:#0e1319;--card:#18202a;--line:#27313d;--txt:#e6ecf3;--muted:#8595a6;--gold:#f0b429}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--txt);
-    font-family:"Malgun Gothic","Apple SD Gothic Neo","Microsoft YaHei",system-ui,sans-serif}
-  .wrap{width:min(1150px,100% - 24px);margin-inline:auto}
-  header{background:linear-gradient(135deg,#16202b,#202c3a 55%,#16202b);
-    padding:18px 0 14px;border-bottom:1px solid var(--line)}
-  h1{margin:0;font-size:19px;letter-spacing:-.01em}
+    font-family:"Malgun Gothic","Apple SD Gothic Neo","Microsoft YaHei",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{width:min(1080px,100% - 24px);margin-inline:auto}
+  header{padding:16px 0 12px;border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,#141c25,#0e1319)}
+  h1{margin:0;font-size:18px;letter-spacing:-.01em;font-weight:800}
   h1 b{color:var(--gold)}
-  .sub{font-size:11.5px;color:var(--muted);margin-top:3px}
-  .stats{display:flex;gap:18px;margin-top:9px}
-  .stats b{display:block;font-size:19px;color:var(--gold);font-variant-numeric:tabular-nums}
-  .stats span{font-size:10.5px;color:var(--muted)}
-  .filterbar{padding:12px 0 6px}
-  .flabel{font-size:11.5px;color:var(--muted);margin-bottom:7px}
-  .chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+  .sub{font-size:11px;color:var(--muted);margin-top:3px}
+  .stats{display:flex;gap:16px;margin-top:8px;font-size:11px;color:var(--muted)}
+  .stats b{color:var(--gold);font-size:15px;font-variant-numeric:tabular-nums;margin-right:3px}
+
+  /* 角色筛选（必需功能③）*/
+  .sect{padding:12px 0 4px}
+  .stitle{font-size:11px;color:var(--muted);margin-bottom:6px}
+  .chips{display:flex;gap:7px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none}
   .chips::-webkit-scrollbar{display:none}
-  .chip{flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:5px 11px 5px 5px;
+  .chip{flex:0 0 auto;display:flex;align-items:center;gap:5px;padding:4px 10px 4px 4px;
     border-radius:999px;border:1px solid var(--line);background:var(--card);
-    font-size:12.5px;white-space:nowrap;cursor:pointer;color:var(--txt);transition:.15s}
-  .chip img{width:26px;height:26px;border-radius:50%;object-fit:cover;background:#0d1218}
+    font-size:12px;white-space:nowrap;cursor:pointer;color:var(--txt);transition:.12s}
+  .chip img{width:24px;height:24px;border-radius:50%;object-fit:cover;background:#0b1016}
+  .chip .ph{width:24px;height:24px;border-radius:50%;background:#0b1016;
+    display:inline-block}
   .chip .n{font-weight:700}
   .chip .c{font-size:10px;color:var(--muted)}
   .chip:hover{border-color:var(--gold)}
-  .chip.on{background:#2a2410;border-color:var(--gold);color:var(--gold)}
+  .chip.on{background:#2b2412;border-color:var(--gold);color:var(--gold)}
   .chip.on .c{color:var(--gold)}
-  .clear{padding:5px 11px;font-size:12px;border-radius:999px;border:1px solid #d9534f;
-    background:#3a1c20;color:#ffb3b3;cursor:pointer;font-family:inherit}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
-    gap:13px;padding:14px 0 40px}
-  .acct{background:var(--card);border:1px solid var(--line);border-radius:14px;
-    overflow:hidden;transition:.15s;position:relative;cursor:pointer}
-  .acct:hover{border-color:var(--gold);transform:translateY(-2px)}
-  .acct.sold{opacity:.5;filter:grayscale(.8)}
+  .chip.zero{opacity:.42}
+  .clear{padding:4px 10px;font-size:12px;border-radius:999px;border:1px solid #a4433f;
+    background:#331a1c;color:#ffb0ab;cursor:pointer;font-family:inherit}
+  .sortrow{display:flex;gap:6px;align-items:center;padding-top:6px;flex-wrap:wrap}
+  .sortrow span{font-size:11px;color:var(--muted)}
+  .sortrow button{padding:3px 11px;border-radius:999px;border:1px solid var(--line);
+    background:var(--card);color:var(--muted);font-size:11.5px;cursor:pointer;font-family:inherit}
+  .sortrow button.on{background:#2b2412;border-color:var(--gold);color:var(--gold)}
+
+  /* 账号卡（必需功能①②）*/
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(272px,1fr));
+    gap:12px;padding:12px 0 36px}
+  .acct{background:var(--card);border:1px solid var(--line);border-radius:13px;
+    overflow:hidden;transition:.12s;position:relative;cursor:pointer}
+  .acct:hover{border-color:var(--gold)}
+  .acct.sold{opacity:.45;filter:grayscale(.75)}
   .ahead{display:flex;justify-content:space-between;align-items:center;
-    padding:10px 12px;border-bottom:1px solid var(--line)}
-  .anum{font-size:15px;font-weight:800}
+    padding:9px 11px;border-bottom:1px solid var(--line)}
+  .anum{font-size:14px;font-weight:800;letter-spacing:.02em}
+  .copy{font-size:10px;color:var(--muted);border:1px solid var(--line);
+    border-radius:5px;padding:1px 6px;margin-left:7px;background:#111923}
   .cnt{font-size:11px;color:var(--gold);font-weight:700}
-  .chars{display:flex;flex-wrap:wrap;gap:8px;padding:12px}
-  .ch{width:72px;text-align:center}
-  .ch .ph{width:72px;height:64px;border-radius:9px;overflow:hidden;background:#0d1218}
+  .chars{display:flex;flex-wrap:wrap;gap:7px;padding:11px}
+  .ch{width:68px;text-align:center}
+  .ch .ph{width:68px;height:60px;border-radius:8px;overflow:hidden;background:#0b1016}
   .ch .ph img{width:100%;height:100%;object-fit:cover}
-  .ch .nm{font-size:11px;font-weight:700;margin-top:4px;line-height:1.2;
+  .ch .nm{font-size:10.5px;font-weight:700;margin-top:3px;line-height:1.2;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .ribbon{position:absolute;top:0;right:0;background:#d9534f;color:#fff;font-size:10px;
-    font-weight:800;padding:3px 10px;border-bottom-left-radius:10px;z-index:2}
-  .empty{text-align:center;padding:70px 20px;color:var(--muted)}
-  .empty h2{color:var(--txt);font-size:17px;margin:0 0 8px}
-  footer{padding:14px 0 30px;color:var(--muted);font-size:11px;text-align:center}
+  .ribbon{position:absolute;top:0;right:0;background:#c4463f;color:#fff;font-size:9.5px;
+    font-weight:800;padding:2px 9px;border-bottom-left-radius:9px;z-index:2}
+  .empty{text-align:center;padding:56px 16px;color:var(--muted);grid-column:1/-1}
+  .empty h2{color:var(--txt);font-size:16px;margin:0 0 6px}
+  footer{padding:12px 0 26px;color:var(--muted);font-size:10.5px;text-align:center}
+
   /* 弹窗 */
   .modal{position:fixed;inset:0;z-index:50;display:none;align-items:center;
-    justify-content:center;padding:16px;background:rgba(6,10,14,.82);backdrop-filter:blur(3px)}
+    justify-content:center;padding:14px;background:rgba(5,8,11,.84)}
   .modal.show{display:flex}
-  .mbox{background:#18212b;border:1px solid var(--line);border-radius:16px;
-    max-width:min(560px,96vw);max-height:92vh;overflow:auto;padding:16px;width:100%}
-  .mh{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
-  .mt{font-size:17px;font-weight:800;color:var(--gold)}
-  .mx{border:0;background:#2a3542;color:var(--txt);width:32px;height:32px;
-    border-radius:50%;cursor:pointer;font-size:15px}
-  .mgrid{display:flex;flex-wrap:wrap;gap:10px}
-  .mg{width:86px;text-align:center}
-  .mg img{width:86px;height:86px;border-radius:10px;background:#0d1218;object-fit:cover}
-  .mg .n{font-size:12px;font-weight:700;margin-top:4px}
-  .mg .k{font-size:10px;color:var(--muted)}
-  .sortbar{display:flex;gap:8px;align-items:center;padding:6px 0 0;flex-wrap:wrap}
-  .sortbar button{padding:5px 12px;border-radius:999px;border:1px solid var(--line);
-    background:var(--card);color:var(--muted);font-size:12px;cursor:pointer;font-family:inherit}
-  .sortbar button.on{background:#2a2410;border-color:var(--gold);color:var(--gold)}
+  .mbox{background:#161e27;border:1px solid var(--line);border-radius:15px;
+    max-width:min(520px,96vw);max-height:90vh;overflow:auto;padding:14px;width:100%}
+  .mh{display:flex;justify-content:space-between;align-items:center;margin-bottom:11px}
+  .mt{font-size:15px;font-weight:800;color:var(--gold)}
+  .mx{border:0;background:#232d38;color:var(--txt);width:30px;height:30px;
+    border-radius:50%;cursor:pointer;font-size:14px}
+  .mgrid{display:flex;flex-wrap:wrap;gap:9px}
+  .mg{width:80px;text-align:center}
+  .mg img{width:80px;height:80px;border-radius:9px;background:#0b1016;object-fit:cover}
+  .mg .n{font-size:11.5px;font-weight:700;margin-top:3px}
+  .mg .k{font-size:9.5px;color:var(--muted)}
   @media(max-width:560px){
     .grid{grid-template-columns:1fr}
-    .ch{width:62px}.ch .ph{width:62px;height:56px}
+    .ch{width:60px}.ch .ph{width:60px;height:54px}
   }
 </style>
 </head>
 <body>
 <header><div class="wrap">
-  <div class="filterbar">
-    <div class="flabel">캐릭터로 찾기 · 点角色筛选账号（可多选）</div>
-    <div class="chips" id="chips"></div>
+  <h1>MHO <b>SSR</b> 자선 自选</h1>
+  <div class="sub">몬스터헌터 아웃랜더스 · 脚本自动上传</div>
+  <div class="stats">
+    <span><b id="s-acc">0</b>계정 账号</span>
+    <span><b id="s-ssr">0</b>SSR</span>
+    <span><b id="s-sold">0</b>판매완료 已售</span>
+    <span><b id="s-time">—</b>업데이트</span>
   </div>
-  <div class="sortbar">
-    <span class="flabel" style="margin:0">정렬 排序：</span>
-    <button data-sort="num" class="on">编号</button>
-    <button data-sort="ssr">SSR数量</button>
-    <button data-sort="new">最新</button>
+</div></header>
+
+<div class="wrap">
+  <div class="sect">
+    <div class="stitle">캐릭터로 찾기 · 点角色筛选（可多选，需同时拥有）</div>
+    <div class="chips" id="chips"></div>
+    <div class="sortrow">
+      <span>정렬 排序</span>
+      <button data-sort="num" class="on">编号</button>
+      <button data-sort="ssr">SSR数</button>
+      <button data-sort="new">最新</button>
+    </div>
   </div>
   <div class="grid" id="grid"></div>
-  <div class="empty" id="empty" style="display:none">
-    <h2>아직 없어요 / 还没有数据</h2>
-    <p>脚本跑完号会自动传上来。</p>
-  </div>
 </div>
-<footer>자동 업데이트 · 数据由脚本实时上传 · 每 60 秒刷新</footer>
+<footer>数据由脚本实时上传 · 每 60 秒刷新</footer>
 
 <div class="modal" id="modal" onclick="if(event.target===this)closeM()">
   <div class="mbox">
@@ -114,18 +131,20 @@ var DATA = window.SSR_DATA || {accounts: [], catalog: []};
 var picked = new Set();
 var sortBy = 'num';
 
-function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
-                            .replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function esc(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+                  .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
-/* 角色目录：catalog 里全部角色 + 已有账号里出现但目录没有的 */
+/* 角色目录 + 实际出现过的角色合并 */
 function allChars(){
   var m = {}, list = [];
   (DATA.catalog||[]).forEach(function(c){
-    if (!m[c.name]) { m[c.name] = {name:c.name, avatar:c.avatar||'', count:0, kind:c.kind||''}; list.push(m[c.name]); }
+    if (!m[c.name]) { m[c.name] = {name:c.name, avatar:c.avatar||'', count:0}; list.push(m[c.name]); }
   });
   DATA.accounts.forEach(function(a){
     (a.chars||[]).forEach(function(c){
-      if (!m[c.name]) { m[c.name] = {name:c.name, avatar:c.avatar||'', count:0, kind:''}; list.push(m[c.name]); }
+      if (!m[c.name]) { m[c.name] = {name:c.name, avatar:c.avatar||'', count:0}; list.push(m[c.name]); }
       if (!m[c.name].avatar && c.avatar) m[c.name].avatar = c.avatar;
       if (!c.sold) m[c.name].count++;
     });
@@ -139,255 +158,132 @@ function allChars(){
 
 function buildChips(){
   var list = allChars();
-  document.getElementById('chips').innerHTML = list.map(function(c){
+  var html = list.map(function(c){
     var on = picked.has(c.name) ? ' on' : '';
-    var zero = c.count === 0 ? ' zero' : '';
-    var img = c.avatar
-      ? '<img src="'+esc(c.avatar)+'">'
-      : '<span class="ph"></span>';
-    return '<button class="chip'+on+zero+'" onclick="togglePick(this)" data-n="'+esc(c.name)+'">'+
-      img+'<span class="n">'+esc(c.name)+'</span><span class="c">'+c.count+'</span></button>';
-  }).join('') + (picked.size ? '<button class="clear" onclick="clearPick()">清除 '+picked.size+'</button>' : '');
-}
-function togglePick(btn){
-  var n = btn.getAttribute('data-n');
-  if (picked.has(n)) picked.delete(n); else picked.add(n);
-  buildChips(); render();
-}
-function clearPick(){ picked.clear(); buildChips(); render(); }
-
-function filterList(){
-  var arr = [];
-  DATA.accounts.forEach(function(a){
-    var chars = (a.chars||[]);
-    if (picked.size) {
-      var has = true;
-      picked.forEach(function(p){
-        if (!chars.some(function(c){ return c.name === p; })) has = false;
-      });
-      if (!has) return;
-    }
-    arr.push(a);
+    var zero = c.count ? '' : ' zero';
+    var av = c.avatar ? '<img src="'+esc(c.avatar)+'">' : '<span class="ph"></span>';
+    return '<button class="chip'+on+zero+'" data-n="'+esc(c.name)+'">'+
+      av+'<span class="n">'+esc(c.name)+'</span><span class="c">'+c.count+'</span></button>';
+  }).join('');
+  if (picked.size) html += '<button class="clear">清除 '+picked.size+'</button>';
+  var box = document.getElementById('chips');
+  box.innerHTML = html;
+  Array.prototype.forEach.call(box.querySelectorAll('.chip'), function(b){
+    b.onclick = function(){
+      var n = b.getAttribute('data-n');
+      if (picked.has(n)) picked.delete(n); else picked.add(n);
+      buildChips(); render();
+    };
   });
-  arr.sort(function(x,y){
-    if (sortBy === 'ssr') {
-      var cx = x.chars.filter(function(c){return !c.sold;}).length;
-      var cy = y.chars.filter(function(c){return !c.sold;}).length;
-      return cy - cx;
-    }
-    if (sortBy === 'new') return String(y.time||'').localeCompare(String(x.time||''));
-    return String(x.account||'').localeCompare(String(y.account||''));
-  });
-  return arr;
+  var clr = box.querySelector('.clear');
+  if (clr) clr.onclick = function(){ picked.clear(); buildChips(); render(); };
 }
 
 function render(){
-  var arr = filterList();
-  var live=0, sold=0;
-  DATA.accounts.forEach(function(a){ (a.chars||[]).forEach(function(c){ c.sold?sold++:live++; }); });
+  var arr = DATA.accounts.filter(function(a){
+    if (!picked.size) return true;
+    var names = (a.chars||[]).map(function(c){ return c.name; });
+    var has = true;
+    picked.forEach(function(p){ if (names.indexOf(p) < 0) has = false; });
+    return has;
+  });
+
+  if (sortBy === 'ssr') {
+    arr.sort(function(x,y){
+      return y.chars.filter(function(c){return !c.sold;}).length -
+             x.chars.filter(function(c){return !c.sold;}).length;
+    });
+  } else if (sortBy === 'new') {
+    arr.sort(function(x,y){ return String(y.time||'').localeCompare(String(x.time||'')); });
+  } else {
+    arr.sort(function(x,y){ return String(x.account||'').localeCompare(String(y.account||'')); });
+  }
+
+  var live = 0, sold = 0;
+  DATA.accounts.forEach(function(a){
+    (a.chars||[]).forEach(function(c){ c.sold ? sold++ : live++; });
+  });
   document.getElementById('s-acc').textContent = DATA.accounts.length;
   document.getElementById('s-ssr').textContent = live;
   document.getElementById('s-sold').textContent = sold;
   document.getElementById('s-time').textContent = (DATA.updated||'—').slice(5,16);
 
   if (!arr.length) {
-    var msg = picked.size
-      ? '선택한 캐릭터를 가진 계정이 없어요 / 没有同时拥有这些角色的账号'
-      : '아직 없어요 / 还没有数据';
     document.getElementById('grid').innerHTML =
-      '<div class="empty" style="display:block;grid-column:1/-1"><h2>'+msg+'</h2></div>';
+      '<div class="empty"><h2>' +
+      (picked.size ? '선택한 캐릭터를 가진 계정이 없어요<br>没有同时拥有这些角色的账号'
+                   : '아직 없어요<br>还没有数据') +
+      '</h2></div>';
     return;
   }
 
   document.getElementById('grid').innerHTML = arr.map(function(a){
-    var allSold = a.chars.length>0 && a.chars.every(function(c){return c.sold;});
-    var ch = a.chars.map(function(c){
+    var allSold = a.chars.length > 0 && a.chars.every(function(c){ return c.sold; });
+    var liveN = a.chars.filter(function(c){ return !c.sold; }).length;
+    var inner = a.chars.map(function(c){
       var img = c.avatar ? '<img src="'+esc(c.avatar)+'">' : '';
-      return '<div class="ch"><div class="ph">'+img+'</div><div class="nm">'+esc(c.name)+'</div></div>';
+      return '<div class="ch"><div class="ph">'+img+'</div>' +
+             '<div class="nm">'+esc(c.name)+'</div></div>';
     }).join('');
-    var liveN = a.chars.filter(function(c){return !c.sold;}).length;
-    return '<div class="acct'+(allSold?' sold':'')+'" onclick="openM(this)" data-acc="'+esc(a.account)+'">'+
-      (allSold?'<div class="ribbon">판매완료 已售</div>':'')+
-      '<div class="ahead"><div class="anum">#'+esc(a.account)+'</div>'+
-      '<div class="cnt">SSR × '+liveN+'</div></div>'+
-      '<div class="chars">'+ch+'</div></div>';
+    return '<div class="acct'+(allSold?' sold':'')+'" data-acc="'+esc(a.account)+'">'+
+      (allSold ? '<div class="ribbon">판매완료 已售</div>' : '') +
+      '<div class="ahead"><div class="anum">#'+esc(a.account)+
+      '<span class="copy" data-copy="'+esc(a.account)+'">복사 复制</span></div>' +
+      '<div class="cnt">SSR × '+liveN+'</div></div>' +
+      '<div class="chars">'+inner+'</div></div>';
   }).join('');
+
+  // 点卡弹窗 + 点复制按钮复制编号
+  Array.prototype.forEach.call(
+    document.querySelectorAll('.acct'), function(el){
+      el.onclick = function(ev){
+        var cp = ev.target.closest ? ev.target.closest('.copy') : null;
+        if (cp) {
+          var txt = cp.getAttribute('data-copy');
+          try {
+            navigator.clipboard.writeText(txt);
+            cp.textContent = '已复制';
+            setTimeout(function(){ cp.textContent = '복사 复制'; }, 1200);
+          } catch(e) { alert('编号：' + txt); }
+          return;
+        }
+        openM(el.getAttribute('data-acc'));
+      };
+  });
 }
 
-function openM(el){
-  var acc = el.getAttribute('data-acc');
+function openM(acc){
   var a = null;
   DATA.accounts.forEach(function(x){ if (x.account === acc) a = x; });
   if (!a) return;
-  document.getElementById('mt').textContent = '#' + acc + (a.time ? '  ·  ' + a.time : '');
+  document.getElementById('mt').textContent = '#' + acc +
+    (a.time ? '  ·  ' + a.time : '') + '  ·  SSR × ' +
+    a.chars.filter(function(c){ return !c.sold; }).length;
   document.getElementById('mg').innerHTML = a.chars.map(function(c){
     var img = c.avatar ? '<img src="'+esc(c.avatar)+'">' : '';
-    return '<div class="mg">'+img+'<div class="n">'+esc(c.name)+'</div>'+
-      (c.sold?'<div class="k">已售</div>':'<div class="k">SSR</div>')+'</div>';
+    return '<div class="mg">'+img+'<div class="n">'+esc(c.name)+'</div>' +
+           '<div class="k">'+(c.sold ? '已售' : 'SSR')+'</div></div>';
   }).join('');
   document.getElementById('modal').classList.add('show');
 }
 function closeM(){ document.getElementById('modal').classList.remove('show'); }
 
-var sb = document.querySelectorAll('.sortbar button');
-for (var i=0;i<sb.length;i++){
-  sb[i].onclick = (function(b){
-    return function(){
-      for (var k=0;k<sb.length;k++) sb[k].classList.remove('on');
+Array.prototype.forEach.call(
+  document.querySelectorAll('.sortrow button'), function(b){
+    b.onclick = function(){
+      Array.prototype.forEach.call(
+        document.querySelectorAll('.sortrow button'),
+        function(x){ x.classList.remove('on'); });
       b.classList.add('on');
       sortBy = b.getAttribute('data-sort');
       render();
     };
-  })(sb[i]);
-}
-document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeM(); });
+});
 
-buildChips(); render();
-}
-function clearPick(){ picked.clear(); buildChips(); render(); }
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Escape') closeM();
+});
 
-function filterList(){
-  var arr = [];
-  DATA.accounts.forEach(function(a){
-    var chars = (a.chars||[]);
-    if (picked.size) {
-      var has = true;
-      picked.forEach(function(p){
-        if (!chars.some(function(c){ return c.name === p; })) has = false;
-      });
-      if (!has) return;
-    }
-    arr.push(a);
-  });
-  arr.sort(function(x,y){
-    if (sortBy === 'ssr') {
-      var cx = x.chars.filter(function(c){return !c.sold;}).length;
-      var cy = y.chars.filter(function(c){return !c.sold;}).length;
-      return cy - cx;
-    }
-    if (sortBy === 'new') return String(y.time||'').localeCompare(String(x.time||''));
-    return String(x.account||'').localeCompare(String(y.account||''));
-  });
-  return arr;
-}
-
-function render(){
-  var arr = filterList();
-  var live=0, sold=0;
-  DATA.accounts.forEach(function(a){ (a.chars||[]).forEach(function(c){ c.sold?sold++:live++; }); });
-  document.getElementById('s-acc').textContent = DATA.accounts.length;
-  document.getElementById('s-ssr').textContent = live;
-  document.getElementById('s-sold').textContent = sold;
-  document.getElementById('s-time').textContent = (DATA.updated||'—').slice(5,16);
-
-  document.getElementById('grid').innerHTML = arr.map(function(a){
-    var allSold = a.chars.length>0 && a.chars.every(function(c){return c.sold;});
-    var ch = a.chars.map(function(c){
-      var img = c.avatar ? '<img src="'+esc(c.avatar)+'">' : '';
-      return '<div class="ch"><div class="ph">'+img+'</div><div class="nm">'+esc(c.name)+'</div></div>';
-    }).join('');
-    var liveN = a.chars.filter(function(c){return !c.sold;}).length;
-    return '<div class="acct'+(allSold?' sold':'')+'" onclick="openM(this)" data-acc="'+esc(a.account)+'">'+
-      (allSold?'<div class="ribbon">판매완료 已售</div>':'')+
-      '<div class="ahead"><div class="anum">#'+esc(a.account)+'</div>'+
-      '<div class="cnt">SSR × '+liveN+'</div></div>'+
-      '<div class="chars">'+ch+'</div></div>';
-  }).join('');
-  document.getElementById('empty').style.display = arr.length ? 'none' : 'block';
-}
-
-function openM(el){
-  var acc = el.getAttribute('data-acc');
-  var a = null;
-  DATA.accounts.forEach(function(x){ if (x.account === acc) a = x; });
-  if (!a) return;
-  document.getElementById('mt').textContent = '#' + acc + (a.time ? '  ·  ' + a.time : '');
-  document.getElementById('mg').innerHTML = a.chars.map(function(c){
-    var img = c.avatar ? '<img src="'+esc(c.avatar)+'">' : '';
-    return '<div class="mg">'+img+'<div class="n">'+esc(c.name)+'</div>'+
-      (c.sold?'<div class="k">已售</div>':'<div class="k">SSR</div>')+'</div>';
-  }).join('');
-  document.getElementById('modal').classList.add('show');
-}
-function closeM(){ document.getElementById('modal').classList.remove('show'); }
-
-var sb = document.querySelectorAll('.sortbar button');
-for (var i=0;i<sb.length;i++){
-  sb[i].onclick = (function(b){
-    return function(){
-      for (var k=0;k<sb.length;k++) sb[k].classList.remove('on');
-      b.classList.add('on');
-      sortBy = b.getAttribute('data-sort');
-      render();
-    };
-  })(sb[i]);
-}
-document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeM(); });
-
-buildChips(); render();
-setInterval(function(){ location.reload(); }, 60000);
-</script>
-<script>
-var DATA = window.SSR_DATA || {accounts: []};
-var picked = new Set();
-
-function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
-                            .replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-function buildChips(){
-  var seen = {}, list = [];
-  DATA.accounts.forEach(function(a){
-    (a.chars||[]).forEach(function(c){
-      if (c.sold) return;
-      if (!seen[c.name]) { seen[c.name] = {name:c.name, avatar:c.avatar||'', count:0}; list.push(seen[c.name]); }
-      seen[c.name].count++;
-      if (!seen[c.name].avatar && c.avatar) seen[c.name].avatar = c.avatar;
-    });
-  });
-  list.sort(function(x,y){ return y.count - x.count; });
-  document.getElementById('chips').innerHTML = list.map(function(c){
-    var on = picked.has(c.name) ? ' on' : '';
-    var img = c.avatar ? '<img src="'+esc(c.avatar)+'">' : '';
-    return '<button class="chip'+on+'" onclick="togglePick(\''+esc(c.name).replace(/'/g,"\\'")+'\')">'+
-      img+'<span class="n">'+esc(c.name)+'</span><span class="c">'+c.count+'</span></button>';
-  }).join('') + (picked.size ? '<button class="clear" onclick="clearPick()">清除 '+picked.size+'</button>' : '');
-}
-function togglePick(n){ if(picked.has(n)) picked.delete(n); else picked.add(n); buildChips(); render(); }
-function clearPick(){ picked.clear(); buildChips(); render(); }
-
-function render(){
-  var cards = [];
-  DATA.accounts.forEach(function(a){
-    var chars = (a.chars||[]);
-    if (picked.size) {
-      var has = true;
-      picked.forEach(function(p){
-        if (!chars.some(function(c){ return c.name === p; })) has = false;
-      });
-      if (!has) return;
-    }
-    cards.push({acc:a.account, time:a.time, chars:chars,
-                sold: chars.length>0 && chars.every(function(c){ return c.sold; })});
-  });
-  var live=0, sold=0;
-  DATA.accounts.forEach(function(a){ (a.chars||[]).forEach(function(c){ c.sold?sold++:live++; }); });
-  document.getElementById('s-acc').textContent = DATA.accounts.length;
-  document.getElementById('s-ssr').textContent = live;
-  document.getElementById('s-sold').textContent = sold;
-  document.getElementById('s-time').textContent = (DATA.updated||'—').slice(5,16);
-  document.getElementById('grid').innerHTML = cards.map(function(c){
-    var ch = c.chars.map(function(x){
-      var img = x.avatar ? '<img src="'+esc(x.avatar)+'">' : '';
-      return '<div class="ch"><div class="ph">'+img+'</div><div class="nm">'+esc(x.name)+'</div></div>';
-    }).join('');
-    return '<div class="acct'+(c.sold?' sold':'')+'">'+
-      (c.sold?'<div class="ribbon">판매완료 已售</div>':'')+
-      '<div class="ahead"><div class="anum">#'+esc(c.acc)+'</div>'+
-      '<div class="cnt">SSR × '+c.chars.filter(function(x){return !x.sold;}).length+'</div></div>'+
-      '<div class="chars">'+ch+'</div></div>';
-  }).join('');
-  document.getElementById('empty').style.display = cards.length ? 'none' : 'block';
-}
 buildChips(); render();
 setInterval(function(){ location.reload(); }, 60000);
 </script>
