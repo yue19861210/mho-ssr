@@ -80,6 +80,19 @@
   .empty{text-align:center;padding:56px 16px;color:var(--muted);grid-column:1/-1}
   .empty h2{color:var(--txt);font-size:16px;margin:0 0 6px}
   footer{padding:12px 0 26px;color:var(--muted);font-size:10.5px;text-align:center}
+  /* 分页条 */
+  .pager{display:flex;align-items:center;justify-content:center;gap:7px;
+    padding:10px 0 26px;flex-wrap:wrap}
+  .pager button{padding:4px 12px;border-radius:7px;border:1px solid var(--line);
+    background:var(--card);color:var(--muted);font-size:12px;
+    cursor:pointer;font-family:inherit;min-width:34px}
+  .pager button:hover:not(:disabled){border-color:var(--gold);color:var(--gold)}
+  .pager button.on{background:#2b2412;border-color:var(--gold);color:var(--gold);
+    font-weight:800}
+  .pager button:disabled{opacity:.35;cursor:default}
+  .pager .info{font-size:11px;color:var(--muted);margin-left:8px}
+  .pager select{padding:4px 8px;border-radius:7px;border:1px solid var(--line);
+    background:var(--card);color:var(--txt);font-size:11.5px;font-family:inherit}
 
   /* 弹窗 */
   .modal{position:fixed;inset:0;z-index:50;display:none;align-items:center;
@@ -132,6 +145,7 @@
     </div>
   </div>
   <div class="grid" id="grid"></div>
+  <div class="pager" id="pager"></div>
 </div>
 <footer>数据由脚本实时上传 · 每 60 秒刷新</footer>
 
@@ -150,6 +164,9 @@ var DATA = window.SSR_DATA || {accounts: [], catalog: []};
 //   点一下=1张，再点=2张…最多10张，超过回到0（对齐参考站交互）
 var picked = new Map();
 var MAXQ = 10;
+// ★ 2026-11-12 新增分页（对齐参考站：每页 10/20/50/全部）
+var pageNo = 1;
+var pageSize = 20;
 var sortBy = 'num';
 
 function esc(s){
@@ -201,6 +218,7 @@ function buildChips(){
       var nxt = cur + 1;
       if (nxt > MAXQ) nxt = 0;              // 超过上限 → 取消
       if (nxt === 0) picked.delete(n); else picked.set(n, nxt);
+      pageNo = 1;
       buildChips(); render();
     };
   });
@@ -285,10 +303,20 @@ function render(){
     }
     document.getElementById('grid').innerHTML =
       '<div class="empty"><h2>' + msg + '</h2></div>';
+    var pg0 = document.getElementById('pager');
+    if (pg0) pg0.innerHTML = '';
     return;
   }
 
-  document.getElementById('grid').innerHTML = arr.map(function(a){
+  // ★ 分页：只渲染当前页
+  var totalPages = (pageSize > 0)
+    ? Math.max(1, Math.ceil(arr.length / pageSize)) : 1;
+  if (pageNo > totalPages) pageNo = totalPages;
+  if (pageNo < 1) pageNo = 1;
+  var startIdx = (pageSize > 0) ? (pageNo - 1) * pageSize : 0;
+  var pageArr = (pageSize > 0) ? arr.slice(startIdx, startIdx + pageSize) : arr;
+
+  document.getElementById('grid').innerHTML = pageArr.map(function(a){
     var allSold = a.chars.length > 0 && a.chars.every(function(c){ return c.sold; });
     var liveN = a.chars.filter(function(c){ return !c.sold; }).length;
     var inner = a.chars.map(function(c){
@@ -308,6 +336,9 @@ function render(){
       '<div class="chars">'+inner+'</div></div>';
   }).join('');
 
+  // ★ 渲染分页条
+  renderPager(arr.length, totalPages);
+
   // 点卡弹窗 + 点复制按钮复制编号
   Array.prototype.forEach.call(
     document.querySelectorAll('.acct'), function(el){
@@ -325,6 +356,75 @@ function render(){
         openM(el.getAttribute('data-acc'));
       };
   });
+}
+
+function renderPager(total, totalPages){
+  var box = document.getElementById('pager');
+  if (!box) return;
+  if (pageSize <= 0 || totalPages <= 1) {
+    // 单页也显示数量和每页选择器
+    box.innerHTML =
+      '<span class="info">共 ' + total + ' 个账号</span>' +
+      pageSizeSelect() ;
+    bindPageSize();
+    return;
+  }
+  var html = '';
+  html += '<button onclick="goPage(1)"' + (pageNo===1?' disabled':'') +
+          '>«</button>';
+  html += '<button onclick="goPage(' + (pageNo-1) + ')"' +
+          (pageNo===1?' disabled':'') + '>‹</button>';
+  // 页码：当前 ±2
+  var from = Math.max(1, pageNo - 2), to = Math.min(totalPages, pageNo + 2);
+  if (from > 1) html += '<button onclick="goPage(1)">1</button>';
+  if (from > 2) html += '<span class="info">…</span>';
+  for (var p = from; p <= to; p++) {
+    html += '<button class="' + (p===pageNo?'on':'') +
+            '" onclick="goPage(' + p + ')">' + p + '</button>';
+  }
+  if (to < totalPages - 1) html += '<span class="info">…</span>';
+  if (to < totalPages) {
+    html += '<button onclick="goPage(' + totalPages + ')">' +
+            totalPages + '</button>';
+  }
+  html += '<button onclick="goPage(' + (pageNo+1) + ')"' +
+          (pageNo===totalPages?' disabled':'') + '>›</button>';
+  html += '<button onclick="goPage(' + totalPages + ')"' +
+          (pageNo===totalPages?' disabled':'') + '>»</button>';
+  html += '<span class="info">第 ' + pageNo + '/' + totalPages +
+          ' 页 · 共 ' + total + ' 个</span>';
+  html += pageSizeSelect();
+  box.innerHTML = html;
+  bindPageSize();
+}
+
+function pageSizeSelect(){
+  var opts = [[10,'10/页'],[20,'20/页'],[50,'50/页'],[100,'100/页'],
+              [0,'全部']];
+  var h = '<select id="psel">';
+  opts.forEach(function(o){
+    h += '<option value="' + o[0] + '"' +
+         (o[0] === pageSize ? ' selected' : '') + '>' + o[1] + '</option>';
+  });
+  return h + '</select>';
+}
+
+function bindPageSize(){
+  var s = document.getElementById('psel');
+  if (s) s.onchange = function(){
+    pageSize = parseInt(s.value, 10) || 0;
+    pageNo = 1;
+    render();
+  };
+}
+
+function goPage(p){
+  pageNo = p;
+  render();
+  try {
+    document.getElementById('grid').scrollIntoView(
+      {behavior:'smooth', block:'start'});
+  } catch(e) {}
 }
 
 function openM(acc){
@@ -352,6 +452,7 @@ Array.prototype.forEach.call(
         function(x){ x.classList.remove('on'); });
       b.classList.add('on');
       sortBy = b.getAttribute('data-sort');
+      pageNo = 1;
       render();
     };
 });
@@ -363,7 +464,7 @@ document.addEventListener('keydown', function(e){
 // 搜索框：边输边筛（输入即刷新，不用点按钮）
 var qEl = document.getElementById('q');
 if (qEl) {
-  qEl.oninput = function(){ q = qEl.value; render(); };
+  qEl.oninput = function(){ q = qEl.value; pageNo = 1; render(); };
 }
 var qc = document.getElementById('qclear');
 if (qc) {
