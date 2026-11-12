@@ -62,7 +62,8 @@
   .acct.sold{opacity:.45;filter:grayscale(.75)}
   .ahead{display:flex;justify-content:space-between;align-items:center;
     padding:9px 11px;border-bottom:1px solid var(--line)}
-  .anum{font-size:14px;font-weight:800;letter-spacing:.02em}
+  .anum{font-size:14px;font-weight:800;letter-spacing:.02em;display:flex;align-items:center;gap:4px}
+  .mtag{font-size:10px;font-weight:800;color:#0e1319;background:var(--gold);border-radius:4px;padding:1px 6px;letter-spacing:0}
   .copy{font-size:10px;color:var(--muted);border:1px solid var(--line);
     border-radius:5px;padding:1px 6px;margin-left:7px;background:#111923}
   .cnt{font-size:11px;color:var(--gold);font-weight:700;text-align:right;line-height:1.35}
@@ -108,6 +109,7 @@
     <span><b id="s-acc">0</b>계정 账号</span>
     <span><b id="s-ssr">0</b>SSR</span>
     <span><b id="s-sold">0</b>판매완료 已售</span>
+    <span><b id="s-mach">0</b>대 기기 台机器</span>
     <span><b id="s-time">—</b>업데이트</span>
   </div>
 </div></header>
@@ -233,6 +235,10 @@ function render(){
   DATA.accounts.forEach(function(a){
     (a.chars||[]).forEach(function(c){ c.sold ? sold++ : live++; });
   });
+  var machSet = {};
+  DATA.accounts.forEach(function(a){ if (a.machine) machSet[a.machine] = 1; });
+  var machEl = document.getElementById('s-mach');
+  if (machEl) machEl.textContent = Object.keys(machSet).length;
   document.getElementById('s-acc').textContent = DATA.accounts.length;
   document.getElementById('s-ssr').textContent = live;
   document.getElementById('s-sold').textContent = sold;
@@ -273,7 +279,9 @@ function render(){
     }).join('');
     return '<div class="acct'+(allSold?' sold':'')+'" data-acc="'+esc(a.account)+'">'+
       (allSold ? '<div class="ribbon">판매완료 已售</div>' : '') +
-      '<div class="ahead"><div class="anum">#'+esc(a.account)+
+      '<div class="ahead"><div class="anum">'+
+      (a.machine ? '<span class="mtag">'+esc(a.machine)+'</span>' : '')+
+      '#'+esc(a.account)+
       '<span class="copy" data-copy="'+esc(a.account)+'">복사 复制</span></div>' +
       '<div class="cnt">SSR × '+liveN+
       (a.time ? '<span class="atime">'+esc(String(a.time).slice(5))+'</span>' : '')+
@@ -304,7 +312,8 @@ function openM(acc){
   var a = null;
   DATA.accounts.forEach(function(x){ if (x.account === acc) a = x; });
   if (!a) return;
-  document.getElementById('mt').textContent = '#' + acc +
+  document.getElementById('mt').textContent =
+    (a.machine ? '[' + a.machine + '] ' : '') + '#' + acc +
     (a.time ? '  ·  ' + a.time : '') + '  ·  SSR × ' +
     a.chars.filter(function(c){ return !c.sold; }).length;
   document.getElementById('mg').innerHTML = a.chars.map(function(c){
