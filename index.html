@@ -41,6 +41,7 @@
     display:inline-block}
   .chip .n{font-weight:700}
   .chip .c{font-size:10px;color:var(--muted)}
+  .chip .qty{font-size:10px;font-weight:900;color:#0e1319;background:var(--gold);border-radius:999px;padding:0 5px;margin-left:1px;line-height:14px}
   .chip:hover{border-color:var(--gold)}
   .chip.on{background:#2b2412;border-color:var(--gold);color:var(--gold)}
   .chip.on .c{color:var(--gold)}
@@ -145,7 +146,10 @@
 <script src="data.js"></script>
 <script>
 var DATA = window.SSR_DATA || {accounts: [], catalog: []};
-var picked = new Set();
+// ★ 2026-11-12：picked 从 Set 改成 Map(角色名 → 要求张数)
+//   点一下=1张，再点=2张…最多10张，超过回到0（对齐参考站交互）
+var picked = new Map();
+var MAXQ = 10;
 var sortBy = 'num';
 
 function esc(s){
@@ -176,18 +180,27 @@ function allChars(){
 function buildChips(){
   var list = allChars();
   var html = list.map(function(c){
-    var on = picked.has(c.name) ? ' on' : '';
+    var qn = picked.get(c.name) || 0;
+    var on = qn > 0 ? ' on' : '';
     var av = c.avatar ? '<img src="'+esc(c.avatar)+'">' : '<span class="ph"></span>';
-    return '<button class="chip'+on+'" data-n="'+esc(c.name)+'">'+
-      av+'<span class="n">'+esc(c.name)+'</span></button>';
+    var qbadge = qn > 1 ? '<span class="qty">×'+qn+'</span>' : '';
+    return '<button class="chip'+on+'" data-n="'+esc(c.name)+'"'+
+      ' title="点一下要求1张，再点要求2张…最多'+MAXQ+'张">'+
+      av+'<span class="n">'+esc(c.name)+'</span>'+qbadge+'</button>';
   }).join('');
-  if (picked.size) html += '<button class="clear">清除 '+picked.size+'</button>';
+  if (picked.size) {
+    var tot = 0; picked.forEach(function(v){ tot += v; });
+    html += '<button class="clear">清除 '+picked.size+'种/'+tot+'张</button>';
+  }
   var box = document.getElementById('chips');
   box.innerHTML = html;
   Array.prototype.forEach.call(box.querySelectorAll('.chip'), function(b){
     b.onclick = function(){
       var n = b.getAttribute('data-n');
-      if (picked.has(n)) picked.delete(n); else picked.add(n);
+      var cur = picked.get(n) || 0;
+      var nxt = cur + 1;
+      if (nxt > MAXQ) nxt = 0;              // 超过上限 → 取消
+      if (nxt === 0) picked.delete(n); else picked.set(n, nxt);
       buildChips(); render();
     };
   });
@@ -202,10 +215,16 @@ function render(){
   var arr = DATA.accounts.filter(function(a){
     // ① 角色筛选：必须同时拥有所有选中角色
     if (picked.size) {
-      var names = (a.chars||[]).map(function(c){ return c.name; });
-      var has = true;
-      picked.forEach(function(p){ if (names.indexOf(p) < 0) has = false; });
-      if (!has) return false;
+      var ok = true;
+      picked.forEach(function(needQty, pname){
+        // 账号里该角色的总张数（兼容 count 字段，没有就当 1 张）
+        var have = 0;
+        (a.chars||[]).forEach(function(c){
+          if (c.name === pname) have += (c.count || 1);
+        });
+        if (have < needQty) ok = false;     // 至少 N 张
+      });
+      if (!ok) return false;
     }
     // ② 关键词：账号编号 或 任一角色名
     if (kw) {
@@ -249,7 +268,7 @@ function render(){
   if (mEl) {
     if (picked.size || kw) {
       var who = [];
-      picked.forEach(function(p){ who.push(p); });
+      picked.forEach(function(qn, p){ who.push(qn > 1 ? p + '×' + qn : p); });
       var label = who.length ? who.join(' + ') : '"' + q.trim() + '"';
       mEl.textContent = label + ' ：拥有 ' + arr.length + ' 个账号';
     } else {
