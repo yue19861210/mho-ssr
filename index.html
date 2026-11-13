@@ -30,8 +30,35 @@
     background:#1b242e;color:var(--muted);font-size:12px;cursor:pointer;font-family:inherit}
   .qbtn:hover{border-color:var(--gold);color:var(--gold)}
   .match{font-size:11px;color:var(--gold);margin-left:auto}
-  .stitle{font-size:11px;color:var(--muted);margin-bottom:6px}
+  .stitle{font-size:11px;color:var(--muted);margin:0 0 6px}
   /* ★ 2026-11-13 多游戏切换（≥2 个游戏时才显示）*/
+  /* ★ 2026-11-13 游戏大图标入口（≥2 游戏才显示）*/
+  .gentry{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+    gap:12px;padding:6px 0 14px}
+  .gcard{display:flex;flex-direction:column;align-items:center;gap:8px;
+    padding:18px 10px 14px;border-radius:14px;border:1px solid var(--line);
+    background:linear-gradient(160deg,#1b2532,#141b24);cursor:pointer;
+    transition:.15s;font-family:inherit;color:var(--txt)}
+  .gcard:hover{border-color:var(--gold);transform:translateY(-2px);
+    box-shadow:0 6px 20px rgba(240,180,41,.12)}
+  .gcard .ic{width:72px;height:72px;border-radius:18px;display:flex;
+    align-items:center;justify-content:center;font-size:36px;
+    background:radial-gradient(circle at 30% 25%,#2f3d4e,#18202a);
+    border:1px solid #2c3a48}
+  .gcard .gname{font-size:13px;font-weight:800;text-align:center;
+    line-height:1.35}
+  .gcard .gmeta{font-size:10.5px;color:var(--muted)}
+  /* 右上角"返回游戏列表" */
+  .backbtn{display:none;margin-left:auto;padding:5px 12px;border-radius:8px;
+    border:1px solid var(--line);background:var(--card);color:var(--muted);
+    font-size:11.5px;cursor:pointer;font-family:inherit}
+  .backbtn:hover{border-color:var(--gold);color:var(--gold)}
+  /* ★ 清除按钮（stitle 行右侧，搜索和角色图片中间）*/
+  .stitle{display:flex;align-items:center;gap:8px}
+  .chipclear{display:none;padding:3px 11px;font-size:11.5px;border-radius:999px;
+    border:1px solid #a4433f;background:#2a1615;color:#f08a80;cursor:pointer;
+    font-family:inherit;font-weight:700;margin-left:auto;white-space:nowrap}
+  .chipclear:hover{background:#3a1d1b;color:#ff9b93}
   .gbar{display:flex;gap:6px;flex-wrap:wrap;padding:8px 0 2px}
   .gbar button{padding:5px 14px;border-radius:999px;border:1px solid var(--line);
     background:var(--card);color:var(--muted);font-size:12px;cursor:pointer;
@@ -138,8 +165,11 @@
 </head>
 <body>
 <header><div class="wrap">
-  <h1>MHO <b>SSR</b> 자선 自选</h1>
-  <div class="sub">몬스터헌터 아웃랜더스 · 脚本自动上传</div>
+  <h1 style="display:flex;align-items:center;gap:10px">
+    <span id="htitle">MHO <b>SSR</b> 자선 自选</span>
+    <button class="backbtn" id="backbtn" onclick="exitGame()">← 게임목록 游戏列表</button>
+  </h1>
+  <div class="sub" id="hsub">몬스터헌터 아웃랜더스 · 脚本自动上传</div>
   <div class="stats">
     <span><b id="s-acc">0</b>계정 账号</span>
     <span><b id="s-ssr">0</b>SSR</span>
@@ -151,12 +181,19 @@
 
 <div class="wrap">
   <div class="sect">
+    <!-- ★ 游戏大图标入口（只有 ≥2 个游戏时才显示）-->
+    <div class="gentry" id="gentry" style="display:none"></div>
     <div class="gbar" id="gbar" style="display:none"></div>
+  </div>
+  <div class="sect" id="gameview">
     <div class="searchrow">
       <input id="q" type="search" placeholder="搜索账号编号 / 角色名 …">
       <button id="qclear" class="qbtn">清除</button>
     </div>
-    <div class="stitle">캐릭터로 찾기 · 点角色筛选（可多选，需同时拥有）</div>
+    <div class="stitle">
+      <span>캐릭터로 찾기 · 点角色筛选（可多选，需同时拥有）</span>
+      <button class="chipclear" id="chipclear">✕ 清除</button>
+    </div>
     <div class="chips" id="chips"></div>
     <div class="sortrow">
       <span>정렬 排序</span>
@@ -247,28 +284,115 @@ function curCatalog(){
   return out;
 }
 
-/* 渲染游戏切换栏（≥2 个游戏才显示）*/
+/* 每个游戏的图标（emoji，可换成官方 logo URL）*/
+var GAME_ICONS = {
+  'mhtc':    '🏹',
+  'gf2':     '🔫',
+  'chaoxi':  '⚓',
+  'lqsn':    '🏀',
+  'lvmeng':  '🌙',
+  'nikke':   '💃',
+  'default': '🎮'
+};
+
+function gameIcon(gid){
+  return GAME_ICONS[String(gid || '').toLowerCase()] || GAME_ICONS['default'];
+}
+
+/* ★ 2026-11-13：渲染游戏大图标入口 / 切换栏
+   · 1 个游戏   → 入口隐藏，直接进内容（和以前完全一样）
+   · ≥2 游戏    → 显示「全部」+ 各游戏大图标卡片
+*/
 function buildGameBar(){
-  var bar = document.getElementById('gbar');
-  if (!bar) return;
   var gs = gameList();
-  if (gs.length <= 1) { bar.style.display = 'none'; return; }
-  bar.style.display = 'flex';
-  var html = '<button class="' + (curGame === '' ? 'on' : '') +
-             '" data-g="">전체 全部</button>';
-  gs.forEach(function(g){
-    html += '<button class="' + (curGame === g.id ? 'on' : '') +
-            '" data-g="' + esc(g.id) + '">' + esc(g.name) + '</button>';
-  });
-  bar.innerHTML = html;
-  Array.prototype.forEach.call(bar.querySelectorAll('button'), function(b){
-    b.onclick = function(){
-      curGame = b.getAttribute('data-g') || '';
-      picked.clear();          // 换游戏时清空角色筛选（角色不同）
-      pageNo = 1;
-      buildGameBar(); buildGameBar(); buildChips(); render();
-    };
-  });
+  var entry = document.getElementById('gentry');
+  var bar = document.getElementById('gbar');
+  var view = document.getElementById('gameview');
+  var back = document.getElementById('backbtn');
+  var hsub = document.getElementById('hsub');
+  if (!entry || !view) return;
+
+  // ---- 单游戏：入口全隐藏，内容常显 ----
+  if (gs.length <= 1) {
+    entry.style.display = 'none';
+    if (bar) bar.style.display = 'none';
+    view.style.display = '';
+    if (back) back.style.display = 'none';
+    if (hsub && gs.length === 1) {
+      hsub.textContent = gs[0].name + ' · 脚本自动上传';
+    }
+    return;
+  }
+
+  // ---- 多游戏，且还没选游戏 → 显示大图标入口 ----
+  if (!curGame) {
+    entry.style.display = 'grid';
+    if (bar) bar.style.display = 'none';
+    view.style.display = 'none';
+    if (back) back.style.display = 'none';
+    if (hsub) hsub.textContent = '원하는 게임을 선택하세요 · 请选择游戏';
+
+    var html = '';
+    // 全部（汇总）
+    var totAcc = (DATA.accounts || []).length;
+    html += '<button class="gcard" data-g="">' +
+              '<span class="ic">' + gameIcon('') + '</span>' +
+              '<span class="gname">전체 全部游戏</span>' +
+              '<span class="gmeta">' + totAcc + ' 개 계정</span>' +
+            '</button>';
+    gs.forEach(function(g){
+      var n = 0;
+      (DATA.accounts || []).forEach(function(a){
+        if ((a.game || 'default') === g.id) n++;
+      });
+      html += '<button class="gcard" data-g="' + esc(g.id) + '">' +
+                '<span class="ic">' + gameIcon(g.id) + '</span>' +
+                '<span class="gname">' + esc(g.name) + '</span>' +
+                '<span class="gmeta">' + n + ' 개 계정 · ' +
+                  (g.catalog || []).length + ' 캐릭터</span>' +
+              '</button>';
+    });
+    entry.innerHTML = html;
+    Array.prototype.forEach.call(
+      entry.querySelectorAll('.gcard'), function(b){
+        b.onclick = function(){ enterGame(b.getAttribute('data-g') || ''); };
+      });
+    return;
+  }
+
+  // ---- 多游戏，已选游戏 → 显示内容 ----
+  entry.style.display = 'none';
+  if (bar) bar.style.display = 'none';
+  view.style.display = '';
+  if (back) back.style.display = 'inline-block';
+  var gnow = null;
+  gs.forEach(function(g){ if (g.id === curGame) gnow = g; });
+  if (hsub) {
+    hsub.textContent = gnow
+      ? gnow.name + ' · 脚本自动上传'
+      : '脚本自动上传';
+  }
+}
+
+/* 进入某个游戏（gid 为空 = 全部游戏）*/
+function enterGame(gid){
+  curGame = gid || '';
+  picked.clear();
+  q = '';
+  pageNo = 1;
+  var qEl = document.getElementById('q');
+  if (qEl) qEl.value = '';
+  buildGameBar(); buildChips(); render();
+  try { window.scrollTo({top:0, behavior:'smooth'}); } catch(e){}
+}
+
+/* 返回游戏列表*/
+function exitGame(){
+  curGame = '';
+  picked.clear();
+  pageNo = 1;
+  buildGameBar(); buildChips(); render();
+  try { window.scrollTo({top:0, behavior:'smooth'}); } catch(e){}
 }
 
 function buildChips(){
@@ -282,10 +406,7 @@ function buildChips(){
       ' title="点一下要求1张，再点要求2张…最多'+MAXQ+'张">'+
       av+'<span class="n">'+esc(c.name)+'</span>'+qbadge+'</button>';
   }).join('');
-  if (picked.size) {
-    var tot = 0; picked.forEach(function(v){ tot += v; });
-    html += '<button class="clear">清除 '+picked.size+'种/'+tot+'张</button>';
-  }
+  // ★ 2026-11-13：清除按钮已移到 stitle 行（不再放最后）
   var box = document.getElementById('chips');
   box.innerHTML = html;
   Array.prototype.forEach.call(box.querySelectorAll('.chip'), function(b){
@@ -299,8 +420,20 @@ function buildChips(){
       buildChips(); render();
     };
   });
-  var clr = box.querySelector('.clear');
-  if (clr) clr.onclick = function(){ picked.clear(); buildChips(); render(); };
+  syncChipClear();
+}
+
+/* ★ 2026-11-13：同步 stitle 行的清除按钮状态 */
+function syncChipClear(){
+  var b = document.getElementById('chipclear');
+  if (!b) return;
+  if (picked.size) {
+    var tot = 0; picked.forEach(function(v){ tot += v; });
+    b.style.display = 'inline-block';
+    b.textContent = '✕ 清除 ' + picked.size + '종/' + tot + '张';
+  } else {
+    b.style.display = 'none';
+  }
 }
 
 var q = '';
@@ -545,6 +678,14 @@ var qEl = document.getElementById('q');
 if (qEl) {
   qEl.oninput = function(){ q = qEl.value; pageNo = 1; render(); };
 }
+// ★ 2026-11-13：stitle 行（搜索与角色图片之间）的角色清除按钮
+var cc = document.getElementById('chipclear');
+if (cc) {
+  cc.onclick = function(){
+    picked.clear(); buildChips(); render();
+  };
+}
+
 var qc = document.getElementById('qclear');
 if (qc) {
   qc.onclick = function(){
@@ -554,7 +695,10 @@ if (qc) {
   };
 }
 
-buildChips(); render();
+// ★ 启动：先决定显示游戏入口还是内容区，再渲染
+buildGameBar();
+buildChips();
+render();
 setInterval(function(){ location.reload(); }, 60000);
 </script>
 </body>
