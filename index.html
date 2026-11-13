@@ -31,38 +31,17 @@
   .qbtn:hover{border-color:var(--gold);color:var(--gold)}
   .match{font-size:11px;color:var(--gold);margin-left:auto}
   .stitle{font-size:11px;color:var(--muted);margin-bottom:6px}
-  /* ★ 2026-11-13 多游戏切换（≥2 个游戏时才显示）*/
-  .gbar{display:flex;gap:6px;flex-wrap:wrap;padding:8px 0 2px}
-  .gbar button{padding:5px 14px;border-radius:999px;border:1px solid var(--line);
-    background:var(--card);color:var(--muted);font-size:12px;cursor:pointer;
-    font-family:inherit;font-weight:700}
-  .gbar button:hover{border-color:var(--gold);color:var(--gold)}
-  .gbar button.on{background:#2b2412;border-color:var(--gold);color:var(--gold)}
-  .chips{display:flex;gap:8px;overflow-x:auto;padding:4px 0 8px;
-    scrollbar-width:none}
+  .chips{display:flex;gap:7px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none}
   .chips::-webkit-scrollbar{display:none}
-  /* ★ 2026-11-13：角色卡改为【大图标】—— 64px 方形头像 + 下方名字 */
-  .chip{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;
-    gap:3px;padding:4px 4px 5px;border-radius:10px;
-    border:1px solid var(--line);background:var(--card);
-    font-size:11px;white-space:nowrap;cursor:pointer;color:var(--txt);
-    transition:.12s;position:relative;width:72px}
-  .chip img{width:64px;height:64px;border-radius:8px;object-fit:cover;
-    background:#0b1016;display:block}
-  .chip .ph{width:64px;height:64px;border-radius:8px;background:#0b1016;
-    display:flex;align-items:center;justify-content:center;
-    color:#3a4654;font-size:22px}
-  .chip .n{font-weight:700;font-size:10.5px;max-width:68px;
-    overflow:hidden;text-overflow:ellipsis;text-align:center;line-height:1.2}
+  .chip{flex:0 0 auto;display:flex;align-items:center;gap:5px;padding:4px 10px 4px 4px;
+    border-radius:999px;border:1px solid var(--line);background:var(--card);
+    font-size:12px;white-space:nowrap;cursor:pointer;color:var(--txt);transition:.12s}
+  .chip img{width:24px;height:24px;border-radius:50%;object-fit:cover;background:#0b1016}
+  .chip .ph{width:24px;height:24px;border-radius:50%;background:#0b1016;
+    display:inline-block}
+  .chip .n{font-weight:700}
   .chip .c{font-size:10px;color:var(--muted)}
-  .chip .qty{position:absolute;top:1px;right:1px;font-size:10px;
-    font-weight:900;color:#0e1319;background:var(--gold);
-    border-radius:999px;padding:0 5px;line-height:15px;min-width:16px;
-    text-align:center;box-shadow:0 0 0 2px var(--card)}
-  .chip .qty{position:absolute;top:2px;right:2px;font-size:10px;
-    font-weight:900;color:#0e1319;background:var(--gold);
-    border-radius:999px;padding:0 5px;line-height:15px;min-width:16px;
-    text-align:center;box-shadow:0 0 0 2px var(--card)}
+  .chip .qty{font-size:10px;font-weight:900;color:#0e1319;background:var(--gold);border-radius:999px;padding:0 5px;margin-left:1px;line-height:14px}
   .chip:hover{border-color:var(--gold)}
   .chip.on{background:#2b2412;border-color:var(--gold);color:var(--gold)}
   .chip.on .c{color:var(--gold)}
@@ -151,7 +130,6 @@
 
 <div class="wrap">
   <div class="sect">
-    <div class="gbar" id="gbar" style="display:none"></div>
     <div class="searchrow">
       <input id="q" type="search" placeholder="搜索账号编号 / 角色名 …">
       <button id="qclear" class="qbtn">清除</button>
@@ -188,9 +166,7 @@ var picked = new Map();
 var MAXQ = 10;
 // ★ 2026-11-12 新增分页（对齐参考站：每页 10/20/50/全部）
 var pageNo = 1;
-var pageSize = 10;   // ★ 2026-11-13 用户要求默认 10 条
-// ★ 2026-11-13 多游戏：当前选中的游戏（空 = 全部）
-var curGame = '';
+var pageSize = 20;
 var sortBy = 'num';
 
 function esc(s){
@@ -201,7 +177,7 @@ function esc(s){
 /* 角色目录 + 实际出现过的角色合并 */
 function allChars(){
   var m = {}, list = [];
-  curCatalog().forEach(function(c){
+  (DATA.catalog||[]).forEach(function(c){
     if (!m[c.name]) { m[c.name] = {name:c.name, avatar:c.avatar||'', count:0}; list.push(m[c.name]); }
   });
   DATA.accounts.forEach(function(a){
@@ -216,59 +192,6 @@ function allChars(){
     return String(x.name).localeCompare(String(y.name), 'zh');
   });
   return list;
-}
-
-/* ★ 2026-11-13 多游戏：从数据里推断游戏清单（兼容老数据）*/
-function gameList(){
-  // ① 新数据结构：DATA.games
-  if (Array.isArray(DATA.games) && DATA.games.length) return DATA.games;
-  // ② 老数据：从 accounts 的 game 字段推断
-  var m = {};
-  (DATA.accounts || []).forEach(function(a){
-    var g = a.game || 'default';
-    if (!m[g]) m[g] = {id: g, name: g === 'mhtc' ? '몬스터헌터 아웃랜더스' : g,
-                       catalog: []};
-  });
-  return Object.keys(m).map(function(k){ return m[k]; });
-}
-
-/* 当前游戏对应的 catalog（角色头像库）*/
-function curCatalog(){
-  var gs = gameList();
-  if (curGame) {
-    for (var i = 0; i < gs.length; i++) {
-      if (gs[i].id === curGame) return gs[i].catalog || [];
-    }
-    return [];
-  }
-  // 全部：合并所有游戏的 catalog
-  var out = [];
-  gs.forEach(function(g){ out = out.concat(g.catalog || []); });
-  return out;
-}
-
-/* 渲染游戏切换栏（≥2 个游戏才显示）*/
-function buildGameBar(){
-  var bar = document.getElementById('gbar');
-  if (!bar) return;
-  var gs = gameList();
-  if (gs.length <= 1) { bar.style.display = 'none'; return; }
-  bar.style.display = 'flex';
-  var html = '<button class="' + (curGame === '' ? 'on' : '') +
-             '" data-g="">전체 全部</button>';
-  gs.forEach(function(g){
-    html += '<button class="' + (curGame === g.id ? 'on' : '') +
-            '" data-g="' + esc(g.id) + '">' + esc(g.name) + '</button>';
-  });
-  bar.innerHTML = html;
-  Array.prototype.forEach.call(bar.querySelectorAll('button'), function(b){
-    b.onclick = function(){
-      curGame = b.getAttribute('data-g') || '';
-      picked.clear();          // 换游戏时清空角色筛选（角色不同）
-      pageNo = 1;
-      buildGameBar(); buildGameBar(); buildChips(); render();
-    };
-  });
 }
 
 function buildChips(){
@@ -308,8 +231,6 @@ var q = '';
 function render(){
   var kw = q.trim().toLowerCase();
   var arr = DATA.accounts.filter(function(a){
-    // ★ 多游戏：只显示当前选中游戏的账号
-    if (curGame && (a.game || 'default') !== curGame) return false;
     // ① 角色筛选：必须同时拥有所有选中角色
     if (picked.size) {
       var ok = true;
