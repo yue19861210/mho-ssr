@@ -295,7 +295,10 @@ function allChars(){
   curCatalog().forEach(function(c){
     if (!m[c.name]) { m[c.name] = {name:c.name, avatar:c.avatar||'', count:0}; list.push(m[c.name]); }
   });
+  // ★ 2026-11-21 修（用户实测：角色筛选栏把两个游戏混在一起）：
+  //   遍历账号前必须先按 curGame 过滤，否则会看到别的游戏的角色。
   DATA.accounts.forEach(function(a){
+    if (curGame && (a.game || 'default') !== curGame) return;
     (a.chars||[]).forEach(function(c){
       if (!m[c.name]) { m[c.name] = {name:c.name, avatar:c.avatar||'', count:0}; list.push(m[c.name]); }
       if (!m[c.name].avatar && c.avatar) m[c.name].avatar = c.avatar;
