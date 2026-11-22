@@ -777,11 +777,82 @@ if (qc) {
   };
 }
 
-// ★ 启动：先决定显示游戏入口还是内容区，再渲染
+// ★ 2026-11-22 修（选中状态 5-6 秒后消失）：
+//   旧版每 60 秒 location.reload() → picked/pageNo 全重置
+//   新版改成【静默刷新数据】，不重载页面，选中状态保留
+function refreshData(){
+  try {
+    var x = new XMLHttpRequest();
+    x.open('GET', 'data.js?t=' + Date.now(), true);
+    x.onload = function(){
+      if (x.status !== 200) return;
+      try {
+        // data.js 是 window.SSR_DATA = {...}
+        var tmp = {};
+        var fn = new Function('window', 'var SSR_DATA;' + x.responseText
+                              + ';return window.SSR_DATA;');
+        var nd = fn(tmp);
+        if (!nd || !nd.accounts) return;
+        var oldN = (DATA.accounts || []).length;
+        DATA = nd;
+        var newN = (DATA.accounts || []).length;
+        if (newN !== oldN) {
+          // 数据有变化才重绘（不打断用户操作）
+          buildGameBar(); buildChips(); render();
+          console.log('[自动刷新] 账号 ' + oldN + ' → ' + newN);
+        }
+      } catch(e) {}
+    };
+    x.send();
+  } catch(e) {}
+}
+
+// 状态恢复（万一浏览器真刷新了）
+function saveState(){
+  try {
+    sessionStorage.setItem('mho_state', JSON.stringify({
+      picked: Array.from(picked.entries()),
+      pageNo: pageNo, pageSize: pageSize,
+      curGame: curGame, sortBy: sortBy, q: q
+    }));
+  } catch(e) {}
+}
+
+function loadState(){
+  try {
+    var s = sessionStorage.getItem('mho_state');
+    if (!s) return;
+    var d = JSON.parse(s);
+    if (d.picked) picked = new Map(d.picked);
+    if (d.pageNo) pageNo = d.pageNo;
+    if (d.pageSize !== undefined) pageSize = d.pageSize;
+    if (d.curGame !== undefined) curGame = d.curGame;
+    if (d.sortBy) sortBy = d.sortBy;
+    if (d.q) q = d.q;
+  } catch(e) {}
+}
+
+// ★ 启动：先恢复状态，再渲染
+loadState();
 buildGameBar();
 buildChips();
 render();
-setInterval(function(){ location.reload(); }, 60000);
+
+// 搜索框恢复
+if (q) {
+  var _qEl = document.getElementById('q');
+  if (_qEl) _qEl.value = q;
+}
+
+// 每次交互后保存状态
+var _origRender = render;
+render = function(){
+  _origRender.apply(this, arguments);
+  saveState();
+};
+
+// ★ 静默刷新数据（不重载页面）
+setInterval(refreshData, 30000);
 </script>
 </body>
 </html>
